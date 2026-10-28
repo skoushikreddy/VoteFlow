@@ -1,0 +1,11 @@
+.env
+vendor/
+*.log
+.DS_Store
+.idea/
+.vscode/
+.phpunit.result.cache
+.phpunit.cache/
+node_modules/
+npm-debug.log
+composer.phar

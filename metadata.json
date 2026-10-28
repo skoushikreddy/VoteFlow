@@ -1,0 +1,8 @@
+{
+  "name": "VoteFlow",
+  "description": "Secure online voting system with one-vote-per-elector enforcement, live results, and administrative election management.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
