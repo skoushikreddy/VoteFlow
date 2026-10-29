@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { votingStore } from '../store/votingStore';
 import {
   ShieldCheck,
@@ -26,6 +26,16 @@ export const VoterLogin: React.FC<VoterLoginProps> = ({ onSuccess, onNavigateToA
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showDemoAccordion, setShowDemoAccordion] = useState(true);
+
+  useEffect(() => {
+    const handleReset = () => {
+      setVoterId('');
+      setPassword('');
+      setError(null);
+    };
+    window.addEventListener('voteflow-demo-reset', handleReset);
+    return () => window.removeEventListener('voteflow-demo-reset', handleReset);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

@@ -84,6 +84,7 @@ export const Footer: React.FC<FooterProps> = ({ session, onNavigate, onResetData
       <div style={{ marginTop: '0.85rem' }}>
         <button
           id="resetDemoDataButton"
+          data-testid="reset-demo-data-btn"
           type="button"
           onClick={handleResetClick}
           disabled={isResetting}

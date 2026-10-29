@@ -208,7 +208,8 @@ export const App: React.FC = () => {
   };
 
   const handleResetData = () => {
-    votingStore.resetToDefaultSeed();
+    const isAdmin = session.role === 'admin';
+    votingStore.resetToDefaultSeed(isAdmin);
     const freshSession = votingStore.getSession();
     setSession(freshSession);
     setCandidates(votingStore.getCandidates());
@@ -216,7 +217,10 @@ export const App: React.FC = () => {
     setStats(votingStore.getAdminDashboardStats());
     setResults(votingStore.getLiveResults());
     setResetKey((prev) => prev + 1);
-    navigateTo('voter-login');
+
+    if (!isAdmin) {
+      navigateTo('voter-login');
+    }
   };
 
   const activeNav = currentView.startsWith('admin-') ? currentView.replace('admin-', '') : '';

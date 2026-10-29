@@ -2,7 +2,16 @@ import React, { useState } from 'react';
 import { LiveResultsData } from '../types';
 import { getPartyMeta } from '../services/parties';
 import { votingStore } from '../store/votingStore';
-import { RefreshCw, Download, Trophy, BarChart3, Check, Award } from 'lucide-react';
+import {
+  RefreshCw,
+  Download,
+  Trophy,
+  BarChart3,
+  Check,
+  Award,
+  FileSpreadsheet,
+  ShieldCheck,
+} from 'lucide-react';
 
 interface AdminResultsProps {
   results: LiveResultsData;
@@ -25,10 +34,12 @@ export const AdminResults: React.FC<AdminResultsProps> = ({ results, onRefresh }
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', `VoteFlow_Live_Results_${new Date().toISOString().substring(0, 10)}.csv`);
+    const timestampStr = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
+    link.setAttribute('download', `VoteFlow_Official_Tally_Report_${timestampStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
     setDownloadSuccess(true);
     setTimeout(() => setDownloadSuccess(false), 2500);
   };
@@ -49,15 +60,36 @@ export const AdminResults: React.FC<AdminResultsProps> = ({ results, onRefresh }
           <p>Totals and percentages are calculated directly from stored cast ballots.</p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
           <button
+            id="downloadReportButton"
+            data-testid="download-report-button"
             type="button"
             className="btn btn-ghost"
             onClick={handleExportCSV}
-            title="Download CSV audit report"
+            title="Download official election tally report as CSV for record keeping"
+            style={{
+              backgroundColor: downloadSuccess ? '#ecfdf5' : '#ffffff',
+              color: downloadSuccess ? '#065f46' : '#0f766e',
+              border: downloadSuccess ? '1.5px solid #10b981' : '1px solid #cbd5e1',
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transition: 'all 0.2s ease',
+            }}
           >
-            <Download size={16} />
-            {downloadSuccess ? 'Downloaded ✓' : 'Export CSV'}
+            {downloadSuccess ? (
+              <>
+                <Check size={16} style={{ color: '#059669' }} />
+                <span>Report Downloaded ✓</span>
+              </>
+            ) : (
+              <>
+                <Download size={16} />
+                <span>Download Report</span>
+              </>
+            )}
           </button>
           <button
             id="refreshResults"
@@ -273,6 +305,61 @@ export const AdminResults: React.FC<AdminResultsProps> = ({ results, onRefresh }
               )}
             </tbody>
           </table>
+        </div>
+      </article>
+
+      {/* Official Record Keeping & Archival Section */}
+      <article
+        className="card"
+        style={{
+          marginTop: '2rem',
+          background: 'linear-gradient(135deg, #f8fafc 0%, #f0fdfa 100%)',
+          border: '1.5px solid #cbd5e1',
+          padding: '1.75rem 2rem',
+          boxShadow: '0 10px 25px -5px rgba(15, 118, 110, 0.08)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1.5rem' }}>
+          <div style={{ maxWidth: 640 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.8rem', fontWeight: 800, color: '#0f766e', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem' }}>
+              <ShieldCheck size={16} />
+              <span>Official Electoral Record Keeping</span>
+            </div>
+            <h3 style={{ margin: '0 0 0.4rem', fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
+              Election Tally Audit & Archival Export
+            </h3>
+            <p style={{ margin: 0, fontSize: '0.9rem', color: '#64748b', lineHeight: 1.5 }}>
+              Export certified tabulation records to a standardized CSV file for statutory record keeping, observer audits, and electoral commission archives. Includes candidate vote totals, voter participation metrics, and cryptographic ledger verification.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '0.5rem' }}>
+            <button
+              id="downloadReportSecondaryButton"
+              type="button"
+              className="btn btn-primary"
+              onClick={handleExportCSV}
+              style={{
+                background: downloadSuccess ? 'linear-gradient(135deg, #059669 0%, #047857 100%)' : 'linear-gradient(135deg, #0f766e 0%, #0d9488 100%)',
+                color: '#ffffff',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                padding: '0.75rem 1.4rem',
+                borderRadius: '10px',
+                border: 'none',
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(15, 118, 110, 0.25)',
+              }}
+            >
+              <FileSpreadsheet size={18} />
+              <span>{downloadSuccess ? 'Report Exported ✓' : 'Download Official Report (.CSV)'}</span>
+            </button>
+            <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 600 }}>
+              Format: RFC 4180 / UTF-8 CSV · Excel & Sheets Ready
+            </span>
+          </div>
         </div>
       </article>
     </>

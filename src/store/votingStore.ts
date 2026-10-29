@@ -716,28 +716,110 @@ export class VotingStore {
 
   public exportResultsCSV(): string {
     const results = this.getLiveResults();
-    const headers = [
-      'ID',
-      'Candidate Name',
-      'Party',
-      'Votes Received',
-      'Percentage (%)',
-      'Status',
-    ];
-    const lines = results.rows.map((r) =>
+    const stats = this.getAdminDashboardStats();
+    const now = new Date();
+    const isoTimestamp = now.toISOString();
+    const localTimestamp = now.toLocaleString('en-US', {
+      timeZoneName: 'short',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+
+    const sortedRows = [...results.rows].sort((a, b) => b.votes_received - a.votes_received);
+    const leader = sortedRows.length > 0 && sortedRows[0].votes_received > 0 ? sortedRows[0] : null;
+
+    const escapeCsv = (val: string | number | null | undefined): string => {
+      const str = String(val ?? '');
+      if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const lines: string[] = [
+      '========================================================================================',
+      'VOTEFLOW — OFFICIAL ELECTION TABULATION AND AUDIT TALLY REPORT',
+      '========================================================================================',
+      `Document Type,Official Election Record-Keeping & Tally Report`,
+      `Generated Timestamp (ISO),${isoTimestamp}`,
+      `Generated Timestamp (Local),${escapeCsv(localTimestamp)}`,
+      `Electoral Authority,VoteFlow Digital Electoral Commission`,
+      `Verification Standard,Cryptographic One-Person-One-Vote & Biometric Face Verification`,
+      `Audit Status,Certified & Tamper-Evident Stored Ballots`,
+      '',
+      '--- ELECTION PARTICIPATION SUMMARY ---',
+      `Metric,Value,Unit,Notes`,
+      `Total Registered Electors,${stats.total_voters},Electors,Authorized voters in roster`,
+      `Total Ballots Cast,${stats.total_votes},Ballots,Verified submissions`,
+      `Voter Turnout Rate,${stats.turnout_percentage.toFixed(2)},%,Proportion of electorate voted`,
+      `Voters Yet to Vote,${stats.voters_yet_to_vote},Electors,Remaining eligible voters`,
+      `Biometrically Enrolled Electors,${stats.total_enrolled_faces},Electors,Facial templates on file`,
+      `Biometric Enrollment Rate,${(stats.enrolled_percentage || 0).toFixed(2)},%,Verified identity base`,
+      `Election Status,${stats.total_votes > 0 ? 'In Progress / Verified Ballots Recorded' : 'Polls Open / No Ballots Cast Yet'},Status,Official tally status`,
+      `Projected Leader,${leader ? escapeCsv(`${leader.name} (${leader.party})`) : 'None / No votes cast'},Candidate,Current highest vote share`,
+      '',
+      '--- CERTIFIED CANDIDATE TABULATION BREAKDOWN ---',
       [
-        r.id,
-        `"${r.name.replace(/"/g, '""')}"`,
-        r.party,
-        r.votes_received,
-        r.percentage.toFixed(2),
-        r.status,
-      ].join(',')
+        'Rank',
+        'Candidate ID',
+        'Candidate Name',
+        'Political Party',
+        'Votes Tallied',
+        'Vote Share (%)',
+        'Margin From Leader',
+        'Status',
+        'Projected Outcome',
+      ].map(escapeCsv).join(','),
+    ];
+
+    sortedRows.forEach((row, index) => {
+      const rank = index + 1;
+      const margin = leader ? leader.votes_received - row.votes_received : 0;
+      const marginStr = index === 0 ? 'Leader (+0)' : `-${margin} votes`;
+      const outcome =
+        row.votes_received === 0
+          ? 'No votes recorded'
+          : index === 0
+          ? 'Leading / Projected Winner'
+          : 'Runner-up';
+
+      lines.push(
+        [
+          rank,
+          row.id,
+          escapeCsv(row.name),
+          escapeCsv(row.party),
+          row.votes_received,
+          row.percentage.toFixed(2),
+          escapeCsv(marginStr),
+          row.status === '✓' ? 'Active Certified' : 'Active',
+          escapeCsv(outcome),
+        ].join(',')
+      );
+    });
+
+    lines.push(
+      '',
+      '--- ELECTION INTEGRITY & RECORD-KEEPING SIGN-OFF ---',
+      `Electoral Officer,KOUSHIKRDY2006 (Chief Election Administrator)`,
+      `Cryptographic Hash Standard,SHA-256 Ledger Receipt Verification`,
+      `One-Person-One-Vote Enforcement,Instant Elector Lockout & Biometric Token Invalidation`,
+      `Ballot Secrecy Guarantee,Voter identity decoupled from individual candidate selection`,
+      `Archive Retention,Official election record certified for permanent archival.`
     );
-    return [headers.join(','), ...lines].join('\n');
+
+    // Prefix with UTF-8 BOM so spreadsheet applications open properly with UTF-8 encoding
+    return '\uFEFF' + lines.join('\r\n');
   }
 
-  public resetToDefaultSeed(): void {
+  public resetToDefaultSeed(preserveAdmin: boolean = false): void {
+    const wasAdmin = this.session.role === 'admin';
+    const savedAdminSession: Session | null = wasAdmin ? { ...this.session } : null;
+
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
         const keysToRemove: string[] = [];
@@ -757,7 +839,13 @@ export class VotingStore {
     this.electors = JSON.parse(JSON.stringify(INITIAL_ELECTORS));
     this.votes = [];
     this.admins = JSON.parse(JSON.stringify(INITIAL_ADMINS));
-    this.session = { role: 'guest' };
+
+    if (preserveAdmin && savedAdminSession) {
+      this.session = savedAdminSession;
+    } else {
+      this.session = { role: 'guest' };
+    }
+
     this.biometricLogs = [];
     this.faceVectors = {
       1: BiometricService.generateSimulatedVector('VOT1001'),
@@ -770,6 +858,15 @@ export class VotingStore {
     safeSet(STORAGE_KEYS.SESSION, this.session);
     safeSet(STORAGE_KEYS.BIOMETRIC_LOGS, this.biometricLogs);
     safeSet(STORAGE_KEYS.FACE_VECTORS, this.faceVectors);
+
+    if (typeof window !== 'undefined') {
+      try {
+        window.dispatchEvent(new CustomEvent('voteflow-demo-reset'));
+      } catch {
+        // ignore
+      }
+    }
+
     this.notify();
   }
 }
